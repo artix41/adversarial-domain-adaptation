@@ -2,16 +2,23 @@ import tensorflow as tf
 from sklearn.metrics import accuracy_score
 
 from losses import *
+from models import encoders
+from models import decoders
+from models import discriminators
+
 from utils import log
 
 class ADA:
-    def __init__(self, config, output_dir, sess):
+    def __init__(self, config, output_dir, sess, verbose=2):
         self.config = config
         self.outupt_dir = output_dir
         self.sess = sess
         self.iter = 0
         
     def build_model(self, summary_dir):
+        config_gen = self.config["networks"]["generator"]
+        config_disc = self.config["networks"]["discriminator"]
+
         # ===================== Placeholders =====================
         
         self.ipt_source = tf.placeholder(tf.float32, shape=[None, 32, 32, 3], name='ipt_source')
@@ -23,45 +30,45 @@ class ADA:
         
         # ===================== Outputs of the NN =====================
         
-        encoder = getattr(models.encoders, config["networks"]["generator"]["encoder_name"])
-        decoder = getattr(models.decoders, config["networks"]["generator"]["decoder_name"])
-        discriminator = getattr(models.discriminators, config["networks"]["discriminator"]["name"])
+        encoder = getattr(encoders, self.config["networks"]["generator"]["encoder_name"])
+        decoder = getattr(decoders, self.config["networks"]["generator"]["decoder_name"])
+        discriminator = getattr(discriminators, self.config["networks"]["discriminator"]["name"])
         
         # Encoders
-        E_mean_source, E_source = encoder(ipt_source, "source")
-        E_mean_target, E_target = encoder(ipt_target, "target")
+        E_mean_source, E_source = encoder(self.ipt_source, "source", config_gen)
+        E_mean_target, E_target = encoder(self.ipt_target, "target", config_gen)
         
         # Deocoder
-        self.G_t2s = decoder(E_target, "source") # target to source (t2s)
-        self.G_s2t = decoder(E_source, "target") # source to target (s2t)
-        self.G_t2s_mean = decoder(E_mean_target, "source")
-        self.G_s2t_mean = decoder(E_mean_source, "target")
+        self.G_t2s = decoder(E_target, "source", config_gen) # target to source (t2s)
+        self.G_s2t = decoder(E_source, "target", config_gen) # source to target (s2t)
+        self.G_t2s_mean = decoder(E_mean_target, "source", config_gen)
+        self.G_s2t_mean = decoder(E_mean_source, "target", config_gen)
 
         # VAE
-        self.G_t2t = decoder(E_target, "target") # target to target (t2t)
-        self.G_s2s = decoder(E_source, "source") # source to source (s2s)
-        self.G_t2t_mean = decoder(E_mean_target, "target")
-        self.G_s2s_mean = decoder(E_mean_source, "source")
+        self.G_t2t = decoder(E_target, "target", config_gen) # target to target (t2t)
+        self.G_s2s = decoder(E_source, "source", config_gen) # source to source (s2s)
+        self.G_t2t_mean = decoder(E_mean_target, "target", config_gen)
+        self.G_s2s_mean = decoder(E_mean_source, "source", config_gen)
 
         # Cycle
-        self.G_cycle_s2s = decoder(encoder(self.G_s2t, "target")[1], "source")
-        self.G_cycle_t2t = decoder(encoder(self.G_t2s, "source")[1], "target")
-        self.G_cycle_s2s_mean = decoder(encoder(self.G_s2t_mean, "target")[0], "source")
-        self.G_cycle_t2t_mean = decoder(encoder(self.G_t2s_mean, "source")[0], "target")
+        self.G_cycle_s2s = decoder(encoder(self.G_s2t, "target", config_gen)[1], "source", config_gen)
+        self.G_cycle_t2t = decoder(encoder(self.G_t2s, "source", config_gen)[1], "target", config_gen)
+        self.G_cycle_s2s_mean = decoder(encoder(self.G_s2t_mean, "target", config_gen)[0], "source", config_gen)
+        self.G_cycle_t2t_mean = decoder(encoder(self.G_t2s_mean, "source", config_gen)[0], "target", config_gen)
         
         # Discriminator
-        D_target, D_target_logits, D_target_classif, D_target_embed = discriminator(ipt_target, "target")
-        D_source, D_source_logits, D_source_classif, D_source_embed = discriminator(ipt_source, "source")
+        D_target, D_target_logits, D_target_classif, D_target_embed = discriminator(self.ipt_target, "target", config_disc)
+        D_source, D_source_logits, D_source_classif, D_source_embed = discriminator(self.ipt_source, "source", config_disc)
 
-        DG_t2s, DG_t2s_logits, DG_t2s_classif, DG_t2s_embed = discriminator(self.G_t2s, "source")
-        DG_s2t, DG_s2t_logits, DG_s2t_classif, DG_s2t_embed = discriminator(self.G_s2t, "target")
-        DG_s2s, DG_s2s_logits, DG_s2s_classif, DG_s2s_embed = discriminator(self.G_s2s, "source")
-        DG_t2t, DG_t2t_logits, DG_t2t_classif, DG_t2t_embed = discriminator(self.G_t2t, "target")
+        DG_t2s, DG_t2s_logits, DG_t2s_classif, DG_t2s_embed = discriminator(self.G_t2s, "source", config_disc)
+        DG_s2t, DG_s2t_logits, DG_s2t_classif, DG_s2t_embed = discriminator(self.G_s2t, "target", config_disc)
+        DG_s2s, DG_s2s_logits, DG_s2s_classif, DG_s2s_embed = discriminator(self.G_s2s, "source", config_disc)
+        DG_t2t, DG_t2t_logits, DG_t2t_classif, DG_t2t_embed = discriminator(self.G_t2t, "target", config_disc)
 
-        DG_t2s_mean, DG_t2s_logits_mean, DG_t2s_classif_mean, DG_t2s_embed_mean = discriminator(self.G_t2s_mean, "source")
-        DG_s2t_mean, DG_s2t_logits_mean, DG_s2t_classif_mean, DG_s2t_embed_mean = discriminator(self.G_s2t_mean, "target")
-        DG_s2s_mean, DG_s2s_logits_mean, DG_s2s_classif_mean, DG_s2s_embed_mean = discriminator(self.G_s2s_mean, "source")
-        DG_t2t_mean, DG_t2t_logits_mean, DG_t2t_classif_mean, DG_t2t_embed_mean = discriminator(self.G_t2t_mean, "target")
+        DG_t2s_mean, DG_t2s_logits_mean, DG_t2s_classif_mean, DG_t2s_embed_mean = discriminator(self.G_t2s_mean, "source", config_disc)
+        DG_s2t_mean, DG_s2t_logits_mean, DG_s2t_classif_mean, DG_s2t_embed_mean = discriminator(self.G_s2t_mean, "target", config_disc)
+        DG_s2s_mean, DG_s2s_logits_mean, DG_s2s_classif_mean, DG_s2s_embed_mean = discriminator(self.G_s2s_mean, "source", config_disc)
+        DG_t2t_mean, DG_t2t_logits_mean, DG_t2t_classif_mean, DG_t2t_embed_mean = discriminator(self.G_t2t_mean, "target", config_disc)
         
         self.DG_t2s_predict = tf.argmax(tf.nn.softmax(DG_t2s_classif), dim=1)
         self.DG_t2s_predict_mean = tf.argmax(tf.nn.softmax(DG_t2s_classif_mean), dim=1)
@@ -266,7 +273,7 @@ class ADA:
                 target_predict = DG_t2s_classif_predict_mean
                 test_samples = X_target[start:batch_size+start]
                 Y_target_predict = np.concatenate([Y_target_predict, 
-                                                   sess.run(target_predict, feed_dict={ipt_target: test_samples})])
+                                                   sess.run(target_predict, feed_dict={self.ipt_target: test_samples})])
                                                    
         return accuracy_score(Y_target_test, Y_target_predict)
     

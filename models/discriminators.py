@@ -27,11 +27,11 @@ def unit_discriminator(x, scope, config):
     # Configure weight sharing
     
     scope1 = scope + "/discriminator" # first layer not shared
-    if config["shared_weights"] is in ["weak", "none"]:
+    if config["shared_weights"] in ["weak", "none"]:
         scope2 = scope + "/discriminator"
     else:
         scope2 = "discriminator" # shared weights at the 2nd layer if strong
-    if config["shared_weights"] is in ["weak", "strong"]:
+    if config["shared_weights"] in ["weak", "strong"]:
         scope3 = "disciminator"
     else:
         scope3 = scope + "/discriminator"

@@ -1,6 +1,6 @@
 import sys
 import os
-import torch
+import tensorflow as tf
 
 from ADA import ADA
 from data import load_mnist, load_svhn

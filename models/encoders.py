@@ -25,11 +25,11 @@ def unit_encoder(x, scope, config):
     # Configure weight sharing
     
     scope1 = scope + "/encoder" # first layer not shared
-    if config["shared_weights"] is in ["weak", "none"]:
+    if config["shared_weights"] in ["weak", "none"]:
         scope2 = scope + "/encoder"
     else:
         scope2 = "encoder" # shared weights at the 2nd layer if strong
-    if config["shared_weights"] is in ["weak", "strong"]:
+    if config["shared_weights"] in ["weak", "strong"]:
         scope3 = "encoder"
     else:
         scope3 = scope + "/encoder"

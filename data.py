@@ -3,10 +3,11 @@ import numpy as np
 from skimage import color, transform
 from sklearn.preprocessing import LabelBinarizer
 from torchvision import datasets
+from tensorflow.examples.tutorials.mnist import input_data
 
 from utils import normalize
 
-def transform_mnist(X):
+def transform_mnist(X, use_inverse=False):
     X = X.reshape(len(X), 28, 28)
     if use_inverse:
         X = np.concatenate([X, 1-X], axis=0)
@@ -26,55 +27,74 @@ def transform_svhn(X):
 def load_mnist(config, verbose=2):
     if verbose >= 2:
         print("[*] Loading MNIST")
-    prep_train_file = os.path.join(config["path"], "mnist-train-prep.npy")
-    prep_test_file = os.path.join(config["path"], "mnist-test-prep.npy")
-    if os.exists(prep_file) and os.exists(prep_test_file):
-        if verbose >= 2:
-            print("[+] Preprocessed data found")
-        X_train = np.load(prep_train_file)
-        X_test = np.load(prep_test_file)
-    else:
-        mnist = input_data.read_data_sets(folder_mnist, one_hot=False)
-        X_train = transform_mnist(mnist.train.images)
-        X_test = transform_mnist(mnist.test.images)
+    prep_train_file = os.path.join(config["path"], "mnist-train.npy")
+    prep_train_labels_file = os.path.join(config["path"], "mnist-train-labels.npy")
+    prep_test_file = os.path.join(config["path"], "mnist-test.npy")
+    prep_test_labels_file = os.path.join(config["path"], "mnist-test-labels.npy")
 
-        np.save(X_train, prep_train_file)
-        np.save(X_test, prep_test_file)
+    if os.path.exists(prep_train_file) and os.path.exists(prep_test_file):
+        if verbose >= 2:
+            print("   [+] Preprocessed data found")
+        X_train = np.load(prep_train_file)
+        Y_train = np.load(prep_train_labels_file)
+        X_test = np.load(prep_test_file)
+        Y_test = np.load(prep_test_labels_file)
+    else:
+        print("Load train/test")
+        mnist = input_data.read_data_sets(config["path"], one_hot=False)
+        print("Transform train")
+        X_train = transform_mnist(mnist.train.images, use_inverse=config["use_inverse"])
+        print("Transform test")
+        X_test = transform_mnist(mnist.test.images, use_inverse=config["use_inverse"])
+
+        lb = LabelBinarizer()
+        Y_train = lb.fit_transform(mnist.train.labels)
+        Y_test = mnist.test.labels
         
-    lb = LabelBinarizer()
-    Y_train = lb_mnist.fit_transform(mnist.train.labels)
-    Y_test = mnist.test.labels
+        print("Save train")
+        np.save(prep_train_file, X_train)
+        np.save(prep_train_labels_file, Y_train)
+        print("Save test")
+        np.save(prep_test_file, X_test)
+        np.save(prep_test_labels_file, Y_test)
     
     return X_train, X_test, Y_train, Y_test
     
 def load_svhn(config, verbose=2):
     if verbose >= 2:
         print("[*] Loading SVHN")
-    prep_train_file = os.path.join(config["path"], "svhn-train-prep.npy")
-    prep_test_file = os.path.join(config["path"], "svhn-test-prep.npy")
+    prep_train_file = os.path.join(config["path"], "svhn-train.npy")
+    prep_train_labels_file = os.path.join(config["path"], "svhn-train-labels.npy")
+    prep_test_file = os.path.join(config["path"], "svhn-test.npy")
+    prep_test_labels_file = os.path.join(config["path"], "svhn-test-labels.npy")
     
     if os.path.exists(prep_train_file) and os.path.exists(prep_test_file):
         if verbose >= 2:
-            print("[+] Preprocessed data found")
+            print("   [+] Preprocessed data found")
         X_train = np.load(prep_train_file)
         X_test = np.load(prep_test_file)
+        Y_train = np.load(prep_train_labels_file)
+        Y_test = np.load(prep_test_labels_file)
     else:
-        print("load train")
+        print("Load train")
         svhn_train = datasets.SVHN(root=config["path"], download=False, split="extra")
-        print("load test")
+        print("Load test")
         svhn_test = datasets.SVHN(root=config["path"], download=False, split="test")
-        print("transform train")
+        print("Transform train")
         X_train = transform_svhn(svhn_train.data)
-        print("transform test")
+        print("Transform test")
         X_test = transform_svhn(svhn_test.data)
         
-        print("save train")
-        np.save(X_train, prep_train_file)
-        print("save test")
-        np.save(X_test, prep_test_file)
+        lb = LabelBinarizer()
+        Y_train = lb.fit_transform(svhn_train.labels.flatten() % 10)
+        Y_test = lb.fit_transform(svhn_test.labels.flatten() % 10)
+        
+        print("Save train")
+        np.save(prep_train_file, X_train)
+        np.save(prep_train_labels_file, Y_train)
+        print("Save test")
+        np.save(prep_test_file, X_test)
+        np.save(prep_test_labels_file, Y_test)
 
-    lb = LabelBinarizer()
-    Y_train = lb.fit_transform(svhn_train.labels.flatten() % 10)
-    Y_test = lb.fit_transform(svhn_test.labels.flatten() % 10)
     
     return X_train, X_test, Y_train, Y_test

@@ -1,9 +1,9 @@
 data:
     mnist:
-        path: /datasets/mnist
+        path: /home/arthur/datasets/mnist
         use_inverse: false
     svhn:
-        path: /datasets/svhn
+        path: /home/arthur/datasets/svhn
 train:
     nb_iter: 12
     batch-size: 64
