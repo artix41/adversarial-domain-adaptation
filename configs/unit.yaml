@@ -6,7 +6,7 @@ data:
         path: /home/arthur/datasets/svhn
 train:
     nb_iter: 12
-    batch-size: 64
+    batch_size: 64
     gen_opti: adam
     disc_opti: adam
     lr_gen: 2e-4
@@ -29,7 +29,7 @@ train:
     test_every: 2 
     save_every: 5
 test:
-    batch-size: 100
+    batch_size: 100
 networks:
     generator:
         encoder_name: unit_encoder

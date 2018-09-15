@@ -49,7 +49,7 @@ def load_mnist(config, verbose=2):
 
         lb = LabelBinarizer()
         Y_train = lb.fit_transform(mnist.train.labels)
-        Y_test = mnist.test.labels
+        Y_test = lb.fit_transform(mnist.test.labels)
         
         print("Save train")
         np.save(prep_train_file, X_train)

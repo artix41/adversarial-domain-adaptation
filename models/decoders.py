@@ -40,22 +40,27 @@ def unit_decoder(x, scope, config):
     initializer = tf.contrib.layers.xavier_initializer()
     
     with tf.variable_scope(scope1, reuse=tf.AUTO_REUSE): # shared weights
-        deconv1 = tf.layers.conv2d_transpose(z, ch*8, [4, 4], strides=2, padding='VALID', 
-                                             kernel_initializer=initializer, activation=leaky_relu)
+        deconv1 = tf.layers.conv2d_transpose(x, ch*8, [4, 4], strides=2, padding='VALID', 
+                                             kernel_initializer=initializer, activation=leaky_relu,
+                                             name="deconv1")
 
         deconv2 = tf.layers.conv2d_transpose(deconv1, ch*4, [4, 4], strides=2, padding='SAME', 
-                                             kernel_initializer=initializer, activation=leaky_relu)
+                                             kernel_initializer=initializer, activation=leaky_relu,
+                                             name="deconv2")
         
     with tf.variable_scope(scope2, reuse=tf.AUTO_REUSE):
         deconv3 = tf.layers.conv2d_transpose(deconv2, ch*2, [4, 4], strides=2, padding='SAME', 
-                                             kernel_initializer=initializer, activation=leaky_relu)
+                                             kernel_initializer=initializer, activation=leaky_relu,
+                                             name="deconv3")
         
     with tf.variable_scope(scope3, reuse=tf.AUTO_REUSE):
         deconv4 = tf.layers.conv2d_transpose(deconv3, ch, [4, 4], strides=2, padding='SAME', 
-                                             kernel_initializer=initializer, activation=leaky_relu)
+                                             kernel_initializer=initializer, activation=leaky_relu,
+                                             name="deconv4")
         
         # Layer 6: 16x16x64 --> 32x32x3
         deconv5 = tf.layers.conv2d_transpose(deconv4, 3, [1, 1], strides=1, padding='SAME', 
-                                             kernel_initializer=initializer, activation=tf.nn.tanh)
+                                             kernel_initializer=initializer, activation=tf.nn.tanh,
+                                             name="deconv5")
     
     return deconv5

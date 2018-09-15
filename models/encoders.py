@@ -38,25 +38,30 @@ def unit_encoder(x, scope, config):
     
     ch = config["channels"]
     initializer = tf.contrib.layers.xavier_initializer()
-    
+    print(scope1, scope2, scope3)
     with tf.variable_scope(scope1, reuse=tf.AUTO_REUSE): # not shared
         conv1 = tf.layers.conv2d(x, ch, [5, 5], strides=2, padding='SAME', 
-                                 kernel_initializer=initializer, activation=leaky_relu)
+                                 kernel_initializer=initializer, activation=leaky_relu,
+                                 name="conv1")
     
     with tf.variable_scope(scope2, reuse=tf.AUTO_REUSE):
         # Layer 2: 16x16x64 --> 8x8x128
         conv2 = tf.layers.conv2d(conv1, ch*2, [5, 5], strides=2, padding='SAME', 
-                                 kernel_initializer=initializer, activation=leaky_relu)
+                                 kernel_initializer=initializer, activation=leaky_relu,
+                                 name="conv2")
         
         conv3 = tf.layers.conv2d(conv2, ch*4, [8, 8], strides=1, padding='VALID', 
-                                 kernel_initializer=initializer, activation=leaky_relu)
+                                 kernel_initializer=initializer, activation=leaky_relu,
+                                 name="conv3")
 
     with tf.variable_scope(scope3, reuse=tf.AUTO_REUSE):
-        conv4 = tf.layers.conv2d(conv3, ch*8 [1, 1], strides=1, padding='VALID', 
-                                 kernel_initializer=initializer, activation=leaky_relu)
+        conv4 = tf.layers.conv2d(conv3, ch*8, [1, 1], strides=1, padding='VALID', 
+                                 kernel_initializer=initializer, activation=leaky_relu,
+                                 name="conv4")
 
         mu = tf.layers.conv2d(conv4, ch*8, [1, 1], strides=1, padding='SAME', 
-                              kernel_initializer=initializer, activation=None)
+                              kernel_initializer=initializer, activation=None,
+                              name="mu")
         
         z = mu + tf.random_normal([tf.shape(x)[0],1,1,ch*8],0,1,dtype=tf.float32) # latent space
 

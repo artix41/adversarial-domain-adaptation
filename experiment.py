@@ -8,7 +8,9 @@ from data import load_mnist, load_svhn
 def str_to_class(classname):
     return getattr(sys.modules[__name__], classname)
 
-def experiment(config, output_dir, verbose=2, device=None):
+def experiment(config, output_dir, verbose=2, seed=42):
+    tf.set_random_seed(seed)
+    
     net_config = config["networks"]
     train_config = config["train"]
     test_config = config["test"]
@@ -22,6 +24,7 @@ def experiment(config, output_dir, verbose=2, device=None):
     
     nb_iter = train_config["nb_iter"]
     test_every = train_config["test_every"]
+    save_every = train_config["save_every"]
     
     verbose = verbose
         
@@ -54,7 +57,7 @@ def experiment(config, output_dir, verbose=2, device=None):
             print("---------------------- Training ----------------------\n")
 
         while ada.iter < nb_iter:
-            ada.train(X_source_train, X_target_train, Y_source_train)
+            ada.train(X_source_train, X_target_train, Y_source_train, Y_target_train, summary_dir["train"])
             
             if ada.iter % test_every == 0:
                 ada.test(X_source_test, X_target_test, Y_source_test, Y_target_test)
@@ -68,7 +71,7 @@ def experiment(config, output_dir, verbose=2, device=None):
         if verbose >= 1:
             print("---------------------- Testing ----------------------\n")
         
-        acc = ada.test(X_source_test, X_target_test, Y_source_test, Y_target_test, all=True)
+        acc = ada.test(X_source_test, X_target_test, Y_source_test, Y_target_test, test_all=True)
         
         if verbose >= 1:
             print("Final accuracy: {:0.5f}\n".format(acc))

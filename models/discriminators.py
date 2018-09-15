@@ -43,28 +43,29 @@ def unit_discriminator(x, scope, config):
     
     with tf.variable_scope(scope1, reuse=tf.AUTO_REUSE):
         conv1 = tf.layers.conv2d(x, ch, [5,5], strides=1, padding='SAME', kernel_initializer=initializer, 
-                                 kernel_regularizer=regularizer)
+                                 activation=leaky_relu, name="conv1")
         conv1 = tf.layers.max_pooling2d(conv1, 2, 2)
-        conv1 = tf.nn.leaky_relu(conv1)
         
-    with tf.variable_scope(scope2, reuse=tf.AUTO_REUSE):    
+    with tf.variable_scope(scope2, reuse=tf.AUTO_REUSE):
         conv2 = tf.layers.conv2d(conv1, ch*2, [5,5], strides=1, padding='SAME', kernel_initializer=initializer, 
-                                 activation=leaky_relu)
+                                 activation=leaky_relu, name="conv2")
         conv2 = tf.layers.max_pooling2d(conv2, 2, 2)
         
         conv3 = tf.layers.conv2d(conv2, ch*4, [5,5], strides=1, padding='SAME', kernel_initializer=initializer, 
-                                 activation=leaky_relu)
+                                 activation=leaky_relu, name="conv3")
         conv3 = tf.layers.max_pooling2d(conv3, 2, 2)
         
     with tf.variable_scope(scope3, reuse=tf.AUTO_REUSE): 
         conv4 = tf.layers.conv2d(conv3, ch*8, [5,5], strides=1, padding='SAME', kernel_initializer=initializer, 
-                                 activation=leaky_relu)
+                                 activation=leaky_relu, name="conv4")
         conv4 = tf.layers.max_pooling2d(conv4, 2, 2)
 
         fc1 = tf.contrib.layers.flatten(conv4)
-        fc1_logits = tf.layers.dense(inputs=fc1, units=1, activation=None, kernel_initializer=initializer)
+        fc1_logits = tf.layers.dense(inputs=fc1, units=1, activation=None, kernel_initializer=initializer,
+                                     name="fc1_logits")
         fc1_sigmoid = tf.sigmoid(fc1_logits)
-        fc1_classif = tf.layers.dense(inputs=fc1, units=10, activation=None, kernel_initializer=initializer)
+        fc1_classif = tf.layers.dense(inputs=fc1, units=10, activation=None, kernel_initializer=initializer,
+                                      name="fc1_classif")
         
         embedding_layer = fc1
         

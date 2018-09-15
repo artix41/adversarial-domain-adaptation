@@ -46,9 +46,10 @@ for i_exp in range(len(config_files)):
 
     if os.path.exists(exp_output_dir):
         print("Output path already exists for this experiment. Do you want to delete it? [y/n]")
-        answer = str(input())
-        while answer != 'y' and answer != 'n':
-            answer = input()
+        # answer = str(input())
+        # while answer != 'y' and answer != 'n':
+        #     answer = input()
+        answer = "y"
         if answer == 'y':
             shutil.rmtree(exp_output_dir)
         else:

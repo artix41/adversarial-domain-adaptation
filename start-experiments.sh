@@ -1,2 +1,2 @@
 source activate tl-gpu
-python run-experiments.py configs outputs -v 3
+CUDA_VISIBLE_DEVICES=0 python run-experiments.py configs outputs -v 3

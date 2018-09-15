@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+from utils import log
+
 def original_disc_loss(D_real, D_gen):
     """ Warning : take logits as input"""
     D_real , D_gen = tf.sigmoid(D_real), tf.sigmoid(D_gen)
@@ -32,7 +34,7 @@ def cycle_loss(cycle, original):
     
 def R1_reg(D_real, X_real, D_gen, X_gen):
     grad_D_real = tf.gradients(D_real, X_real)[0]
-    reg_D_real = tf.norm(tf.reshape(grad_D_real, [tf.shape(D_real)[0],-1]), axis=1, keep_dims=True)
+    reg_D_real = tf.norm(tf.reshape(grad_D_real, [tf.shape(D_real)[0],-1]), axis=1, keepdims=True)
     disc_regularizer = tf.reduce_mean(tf.square(reg_D_real))
         
     return disc_regularizer
