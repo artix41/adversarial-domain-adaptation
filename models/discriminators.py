@@ -59,7 +59,6 @@ def unit_discriminator(x, scope, config):
         conv4 = tf.layers.conv2d(conv3, ch*8, [5,5], strides=1, padding='SAME', kernel_initializer=initializer, 
                                  activation=leaky_relu, name="conv4")
         conv4 = tf.layers.max_pooling2d(conv4, 2, 2)
-
         fc1 = tf.contrib.layers.flatten(conv4)
         fc1_logits = tf.layers.dense(inputs=fc1, units=1, activation=None, kernel_initializer=initializer,
                                      name="fc1_logits")

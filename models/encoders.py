@@ -38,7 +38,6 @@ def unit_encoder(x, scope, config):
     
     ch = config["channels"]
     initializer = tf.contrib.layers.xavier_initializer()
-    print(scope1, scope2, scope3)
     with tf.variable_scope(scope1, reuse=tf.AUTO_REUSE): # not shared
         conv1 = tf.layers.conv2d(x, ch, [5, 5], strides=2, padding='SAME', 
                                  kernel_initializer=initializer, activation=leaky_relu,

@@ -8,7 +8,7 @@ from data import load_mnist, load_svhn
 def str_to_class(classname):
     return getattr(sys.modules[__name__], classname)
 
-def experiment(config, output_dir, verbose=2, seed=42):
+def experiment(config, output_dir, load=False, verbose=2, seed=42):
     tf.set_random_seed(seed)
     
     net_config = config["networks"]
@@ -27,13 +27,6 @@ def experiment(config, output_dir, verbose=2, seed=42):
     save_every = train_config["save_every"]
     
     verbose = verbose
-        
-    # =========== Make directories ========
-    
-    os.makedirs(images_dir)
-    os.makedirs(model_dir)
-    os.makedirs(summary_dir["train"])
-    os.makedirs(summary_dir["test"])
     
     # =========== Load data ===========
     
@@ -51,6 +44,16 @@ def experiment(config, output_dir, verbose=2, seed=42):
         ada = ADA(config, output_dir, sess, verbose=verbose)
         ada.build_model(summary_dir)
         
+        # =========== Load the model and create the directories ===========
+        
+        if load:
+            if verbose >= 1:
+                print("[*] Loading existing model...")
+            ada.load(model_dir)
+        else:
+            os.makedirs(images_dir)
+            os.makedirs(model_dir)
+        
         # ============= Training ==============
         
         if verbose >= 1:
@@ -63,9 +66,10 @@ def experiment(config, output_dir, verbose=2, seed=42):
                 ada.test(X_source_test, X_target_test, Y_source_test, Y_target_test)
             if ada.iter % save_every == 0:
                 ada.save_model(model_dir)
-                ada.save_images(X_source_test, X_target_test, images_dir, nb_images=result_config["nb_images"])
+                ada.save_images(X_source_test, X_target_test, images_dir, nb_images=results_config["nb_images"])
             
-        
+            ada.iter += 1
+            
         # ============= Testing ==============
         
         if verbose >= 1:

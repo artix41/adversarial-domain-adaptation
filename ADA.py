@@ -1,6 +1,9 @@
+import os
 import tensorflow as tf
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
+from utils import accuracy, unnormalize, plot_images
 
 import losses
 from losses import *
@@ -14,7 +17,7 @@ from tqdm import tqdm
 class ADA:
     def __init__(self, config, output_dir, sess, verbose=2):
         self.config = config
-        self.outupt_dir = output_dir
+        self.output_dir = output_dir
         self.sess = sess
         self.iter = 0
         self.verbose = verbose
@@ -120,8 +123,8 @@ class ADA:
         G_t2s_loss = gen_loss_func(DG_t2s_logits) 
         G_s2s_loss = gen_loss_func(DG_s2s_logits)
         
-        self.accuracy = tf.metrics.accuracy(tf.argmax(self.labels_target, axis=1), self.DG_t2s_predict)[0]
-        self.accuracy_mean = tf.metrics.accuracy(tf.argmax(self.labels_target, axis=1), self.DG_t2s_predict_mean)[0]
+        self.accuracy = accuracy(tf.argmax(self.labels_target, axis=1), self.DG_t2s_predict)
+        self.accuracy_mean = accuracy(tf.argmax(self.labels_target, axis=1), self.DG_t2s_predict_mean)
         
         self.D_loss = config_train["loss_weight"]["disc"] * (D_s2s_loss + D_t2t_loss + D_s2t_loss + D_t2s_loss) \
                          + config_train["loss_weight"]["feat_matching"] * (feat_t2s_loss + feat_s2t_loss) \
@@ -201,10 +204,7 @@ class ADA:
         batch_size = config_train["batch_size"]
         save_every = config_train["save_every"]
         test_every = config_train["test_every"]
-        
-        if self.iter != 0 and (self.iter % test_every == 0 or self.iter % save_every == 0):
-            return
-        
+
         for self.iter in range(self.iter, nb_iter):
             for k in range(nb_iter_d):
                 idx_sample_source = np.random.choice(len(X_source), batch_size)
@@ -253,6 +253,10 @@ class ADA:
             if self.verbose >= 2:
                 print("Iter: {} / {} -- Accuracy: {:05f} -- Entropy: {:05f}"
                       .format(self.iter, nb_iter, accuracy, entropy), end="\r")
+                      
+            if self.iter != 0 and (self.iter % test_every == 0 or self.iter % save_every == 0):
+                print()
+                return
         print()          
         self.iter += 1
                         
@@ -275,7 +279,7 @@ class ADA:
         self.test_writer.add_summary(summary)
         
         # Display
-        if self.verbose >= 2:        
+        if self.verbose >= 2:      
             print("Test -- Accuracy: {:05f} -- Entropy: {:05f}\n"
                   .format(accuracy, entropy))
                   
@@ -283,17 +287,16 @@ class ADA:
             nb_batches = len(X_target) // batch_size
             Y_target_predict = []
 
-            for start in tqdm(range(0, X_source.shape[0], batch_size)):
+            for start in tqdm(range(0, X_target.shape[0], batch_size)):
                 target_predict = self.DG_t2s_predict_mean
                 test_samples = X_target[start:batch_size+start]
                 Y_target_predict = np.concatenate([Y_target_predict, 
                                                    self.sess.run(target_predict, feed_dict={self.ipt_target: test_samples})])
-                                                   
-            return accuracy_score(Y_target, Y_target_predict)
+            return accuracy_score(np.argmax(Y_target, axis=1), Y_target_predict)
     
     def save_images(self, X_source, X_target, images_dir, nb_images=64):
         images_dir = os.path.join(self.output_dir, "generated-images")
-        if not os.exists(images_dir):
+        if not os.path.exists(images_dir):
             os.mkdir(images_dir)
         X_s2s = unnormalize(self.sess.run(self.G_s2s, feed_dict={self.ipt_source: X_source[:nb_images]}))
         X_t2t = unnormalize(self.sess.run(self.G_t2t, feed_dict={self.ipt_target: X_target[:nb_images]}))
@@ -302,14 +305,13 @@ class ADA:
         X_cycle_s2s = unnormalize(self.sess.run(self.G_cycle_s2s, feed_dict={self.ipt_source: X_source[:nb_images]}))
         X_cycle_t2t = unnormalize(self.sess.run(self.G_cycle_t2t, feed_dict={self.ipt_target: X_target[:nb_images]}))
         
-        Y_source_predict = self.sess.run(D_source_predict, feed_dict={self.ipt_source: X_source[:nb_images]})
-        Y_target_predict = self.sess.run(DG_t2s_predict, feed_dict={self.ipt_target: X_target[:nb_images]})
+        Y_source_predict = self.sess.run(self.D_source_predict, feed_dict={self.ipt_source: X_source[:nb_images]})
+        Y_target_predict = self.sess.run(self.DG_t2s_predict, feed_dict={self.ipt_target: X_target[:nb_images]})
         
         for index in range(len(X_s2s)):
-            plot_images(index, X_s2s, X_t2t, X_s2t, X_t2s, X_cycle_s2s, X_cycle_t2t, Y_source_predict, Y_target_predict)
-            clear_output(wait=True)
-            print("Saving 'generated-images/iter_{1:05d}_image_{2:02d}.png'".format(self.iter, index), end="\r")
-            plt.savefig(os.path.join(images_dir, "iter_{1:05d}_image_{2:02d}.png".format(id_experiment, self.iter, index)))
+            plot_images(index, X_source, X_target, X_s2s, X_t2t, X_s2t, X_t2s, X_cycle_s2s, X_cycle_t2t, Y_source_predict, Y_target_predict)
+            print("Saving 'generated-images/iter_{:05d}_image_{:02d}.png'".format(self.iter, index), end="\r")
+            plt.savefig(os.path.join(images_dir, "iter_{:05d}_image_{:02d}.png".format(self.iter, index)))
                   
     def save_model(self, model_dir):
-        saver.save(self.sess, os.path.join(model_dir, "model.ckpt"))
+        self.saver.save(self.sess, os.path.join(model_dir, "model.ckpt"))

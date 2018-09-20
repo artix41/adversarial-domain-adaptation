@@ -5,7 +5,7 @@ data:
     svhn:
         path: /home/arthur/datasets/svhn
 train:
-    nb_iter: 12
+    nb_iter: 30000
     batch_size: 64
     gen_opti: adam
     disc_opti: adam
@@ -26,8 +26,8 @@ train:
         cycle: 0.
         entropy: 0.
         feat_matching: 0.0001
-    test_every: 2 
-    save_every: 5
+    test_every: 50
+    save_every: 500
 test:
     batch_size: 100
 networks:
