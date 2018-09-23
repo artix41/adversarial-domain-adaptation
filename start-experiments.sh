@@ -1,2 +1,3 @@
 source activate tl-gpu
-CUDA_VISIBLE_DEVICES=0 nohup python run-experiments.py configs outputs -v 3 &
+rm nohup.out
+nohup python run-experiments.py configs/$1.yaml outputs -v 3 &

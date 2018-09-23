@@ -24,15 +24,15 @@ def unit_decoder(x, scope, config):
     
     # Configure weight sharing
     
-    scope1 = scope + "/decoder" # first layer not shared
+    scope3 = scope + "/decoder" # first layer not shared
     if config["shared_weights"] in ["weak", "none"]:
         scope2 = scope + "/decoder"
     else:
         scope2 = "decoder" # shared weights at the 2nd layer if strong
     if config["shared_weights"] in ["weak", "strong"]:
-        scope3 = "decoder"
+        scope1 = "decoder"
     else:
-        scope3 = scope + "/decoder"
+        scope1 = scope + "/decoder"
     
     # Build the network
     
@@ -58,7 +58,7 @@ def unit_decoder(x, scope, config):
                                              kernel_initializer=initializer, activation=leaky_relu,
                                              name="deconv4")
         
-        # Layer 6: 16x16x64 --> 32x32x3
+
         deconv5 = tf.layers.conv2d_transpose(deconv4, 3, [1, 1], strides=1, padding='SAME', 
                                              kernel_initializer=initializer, activation=tf.nn.tanh,
                                              name="deconv5")

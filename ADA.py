@@ -3,7 +3,7 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
-from utils import accuracy, unnormalize, plot_images
+from utils import unnormalize, plot_images
 
 import losses
 from losses import *
@@ -46,7 +46,7 @@ class ADA:
         E_mean_source, E_source = encoder(self.ipt_source, "source", config_gen)
         E_mean_target, E_target = encoder(self.ipt_target, "target", config_gen)
         
-        # Deocoder
+        # Decoder
         self.G_t2s = decoder(E_target, "source", config_gen) # target to source (t2s)
         self.G_s2t = decoder(E_source, "target", config_gen) # source to target (s2t)
         self.G_t2s_mean = decoder(E_mean_target, "source", config_gen)
@@ -79,51 +79,51 @@ class ADA:
         DG_t2t_mean, DG_t2t_logits_mean, DG_t2t_classif_mean, DG_t2t_embed_mean = discriminator(self.G_t2t_mean, "target", config_disc)
         
         self.DG_t2s_predict = tf.argmax(tf.nn.softmax(DG_t2s_classif), axis=1)
-        self.DG_t2s_predict_mean = tf.argmax(tf.nn.softmax(DG_t2s_classif_mean), axis=1)
+        # self.DG_t2s_predict_mean = tf.argmax(tf.nn.softmax(DG_t2s_classif_mean), axis=1)
         self.D_source_predict = tf.argmax(tf.nn.softmax(D_source_classif), axis=1)
         
         # ===================== Losses =====================
         
-        vae_rec_s2s_loss = reconstruction_loss(self.ipt_source, self.G_s2s)
-        vae_kl_s2s_loss = latent_loss(E_mean_source)
+        vae_rec_s2s_loss = reconstruction_loss(self.ipt_source, self.G_s2s, scope="Rec_s2s_loss")
+        vae_kl_s2s_loss = latent_loss(E_mean_source, scope="KL_s2s_loss")
 
-        vae_rec_t2t_loss = reconstruction_loss(self.ipt_target, self.G_t2t)
-        vae_kl_t2t_loss = latent_loss(E_mean_target)
+        vae_rec_t2t_loss = reconstruction_loss(self.ipt_target, self.G_t2t, scope="VAE_rec_t2t_loss")
+        vae_kl_t2t_loss = latent_loss(E_mean_target, scope="KL_t2t_loss")
     
-        classif_source_loss = classification_loss(D_source_classif, self.labels_source)
-        classif_vae_loss = classification_loss(DG_s2s_classif, self.labels_source)
+        classif_source_loss = classification_loss(D_source_classif, self.labels_source, scope="Classif_source_loss")
+        classif_vae_loss = classification_loss(DG_s2s_classif, self.labels_source, scope="Classif_VAE_loss")
         
-        feat_t2s_loss = feat_loss(D_source_embed, DG_t2s_embed)
-        feat_s2t_loss = feat_loss(D_target_embed, DG_s2t_embed)
+        feat_t2s_loss = feat_loss(D_source_embed, DG_t2s_embed, scope="Feature_t2s_loss")
+        feat_s2t_loss = feat_loss(D_target_embed, DG_s2t_embed, scope="Feature_s2t_loss")
         
-        discreg_s2s_loss = R1_reg(D_source_logits, self.ipt_source, DG_s2s_logits, self.G_s2s)
-        discreg_s2t_loss = R1_reg(D_target_logits, self.ipt_target, DG_s2t_logits, self.G_s2t)
-        discreg_t2s_loss = R1_reg(D_source_logits, self.ipt_source, DG_t2s_logits, self.G_t2s)
-        discreg_t2t_loss = R1_reg(D_target_logits, self.ipt_target, DG_t2t_logits, self.G_t2t)
+        discreg_s2s_loss = R1_reg(D_source_logits, self.ipt_source, DG_s2s_logits, self.G_s2s, scope="R1_reg_s2s_loss")
+        discreg_s2t_loss = R1_reg(D_target_logits, self.ipt_target, DG_s2t_logits, self.G_s2t, scope="R1_reg_s2t_loss")
+        discreg_t2s_loss = R1_reg(D_source_logits, self.ipt_source, DG_t2s_logits, self.G_t2s, scope="R1_reg_t2s_loss")
+        discreg_t2t_loss = R1_reg(D_target_logits, self.ipt_target, DG_t2t_logits, self.G_t2t, scope="R1_reg_t2t_loss")
         
-        cycle_s2s_loss = cycle_loss(self.G_cycle_s2s_mean, self.ipt_source)
-        cycle_t2t_loss = cycle_loss(self.G_cycle_t2t_mean, self.ipt_target)
+        cycle_s2s_loss = cycle_loss(self.G_cycle_s2s_mean, self.ipt_source, scope="Cycle s2s loss")
+        cycle_t2t_loss = cycle_loss(self.G_cycle_t2t_mean, self.ipt_target, scope="Cycle t2t loss")
         
-        entropy_t2s_loss = entropy_loss(DG_t2s_classif)
-        entropy_s2s_loss = entropy_loss(DG_s2s_classif)
+        entropy_t2s_loss = entropy_loss(DG_t2s_classif, scope="Entropy_t2s_loss")
+        entropy_s2s_loss = entropy_loss(DG_s2s_classif, scope="Entropy_s2s_loss")
         self.entropy_t2s_loss = entropy_t2s_loss
         
         gen_loss_func = getattr(losses, config_train["gan_loss"] + "_gen_loss")
         disc_loss_func = getattr(losses, config_train["gan_loss"] + "_disc_loss")
         
-        D_s2t_loss = disc_loss_func(D_target_logits, DG_s2t_logits) 
-        D_t2t_loss = disc_loss_func(D_target_logits, DG_t2t_logits)
+        D_s2t_loss = disc_loss_func(D_target_logits, DG_s2t_logits, scope="GAN_discriminator_s2t_loss") 
+        D_t2t_loss = disc_loss_func(D_target_logits, DG_t2t_logits, scope="GAN_discriminator_t2t_loss")
 
-        G_s2t_loss = gen_loss_func(DG_s2t_logits)
-        G_t2t_loss = gen_loss_func(DG_t2t_logits)
+        G_s2t_loss = gen_loss_func(DG_s2t_logits, scope="GAN_generator_s2t_loss")
+        G_t2t_loss = gen_loss_func(DG_t2t_logits, scope="GAN_generator_t2t_loss")
 
-        D_t2s_loss = disc_loss_func(D_source_logits, DG_t2s_logits)
-        D_s2s_loss = disc_loss_func(D_source_logits, DG_s2s_logits)
+        D_t2s_loss = disc_loss_func(D_source_logits, DG_t2s_logits, scope="GAN_discriminator_t2s_loss")
+        D_s2s_loss = disc_loss_func(D_source_logits, DG_s2s_logits, scope="GAN_discriminator_s2s_loss")
 
-        G_t2s_loss = gen_loss_func(DG_t2s_logits) 
-        G_s2s_loss = gen_loss_func(DG_s2s_logits)
+        G_t2s_loss = gen_loss_func(DG_t2s_logits, scope="GAN_generator_t2s_loss") 
+        G_s2s_loss = gen_loss_func(DG_s2s_logits, scope="GAN_generator_s2s_loss")
         
-        self.accuracy = accuracy(tf.argmax(self.labels_target, axis=1), self.DG_t2s_predict)
+        self.accuracy = accuracy(tf.argmax(self.labels_target, axis=1), self.DG_t2s_predict, scope="Accuracy")
         self.accuracy_mean = accuracy(tf.argmax(self.labels_target, axis=1), self.DG_t2s_predict_mean)
         
         self.D_loss = config_train["loss_weight"]["disc"] * (D_s2s_loss + D_t2t_loss + D_s2t_loss + D_t2s_loss) \
@@ -140,6 +140,8 @@ class ADA:
                       
         # ===================== Summary variables =====================
                       
+        tf.summary.scalar("entropy_t2s_loss", entropy_t2s_loss)
+        tf.summary.scalar("entropy_s2s_loss", entropy_s2s_loss)
         tf.summary.scalar("vae_rec_s2s_loss", vae_rec_s2s_loss)
         tf.summary.scalar("vae_kl_s2s_loss", vae_kl_s2s_loss)
         tf.summary.scalar("vae_rec_t2t_loss", vae_rec_t2t_loss)
@@ -164,25 +166,27 @@ class ADA:
         tf.summary.scalar("G_t2t_loss", G_t2t_loss)
         tf.summary.scalar("G_loss", self.G_loss)
         tf.summary.scalar("D_loss", self.D_loss)
-        # tf.summary.scalar("accuracy", self.accuracy)
-        # tf.summary.scalar("accuracy_mean", self.accuracy_mean)
+        tf.summary.scalar("accuracy", self.accuracy)
+        tf.summary.scalar("accuracy_mean", self.accuracy_mean)
         
         self.losses_summary = tf.summary.merge_all()
         
         D_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='source/discriminator') \
                  + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='target/discriminator') \
                  + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='discriminator')
-    
 
         G_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='source/encoder') \
                  + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='target/encoder') \
-                 + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='source/generator') \
-                 + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='target/generator') \
-                 + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='generator') \
+                 + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='source/decoder') \
+                 + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='target/decoder') \
+                 + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='decoder') \
                  + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='encoder')
                  
-        optim_gen = config_train["gen_opti"]
-        optim_disc = config_train["disc_opti"]
+        wc = config_train["weight_clipping"]
+        self.clip_D = [p.assign(tf.clip_by_value(p, -wc, wc)) for p in D_vars]
+
+        gen = config_train["gen_opti"]
+        disc = config_train["disc_opti"]
         lr_gen = config_train["lr_gen"]
         lr_disc = config_train["lr_disc"]
 
@@ -219,8 +223,10 @@ class ADA:
                              self.labels_source: sample_source_labels, 
                              self.labels_target: sample_target_labels,
                              self.is_train: True}
-                # print(feed_dict)
-                D_loss_curr = self.sess.run(self.D_solver, feed_dict=feed_dict)
+
+                self.sess.run(self.D_solver, feed_dict=feed_dict)
+                if config_train["weight_clipping"] > 0:
+                    self.sess.run(self.clip_D)
                 
             for k in range(nb_iter_g):
                 idx_sample_source = np.random.choice(len(X_source), batch_size)
@@ -228,10 +234,12 @@ class ADA:
                 sample_source_labels = Y_source[idx_sample_source]
                 sample_target = X_target[np.random.choice(len(X_target), batch_size)]
                 
-                feed_dict = {self.ipt_source: sample_source, self.ipt_target: sample_target,
-                             self.labels_source: sample_source_labels, self.is_train: True}
+                feed_dict = {self.ipt_source: sample_source, 
+                             self.ipt_target: sample_target,
+                             self.labels_source: sample_source_labels, 
+                             self.is_train: True}
                              
-                G_loss_curr = self.sess.run(self.G_solver, feed_dict=feed_dict)
+                self.sess.run(self.G_solver, feed_dict=feed_dict)
             
             # Collect summary
             idx_sample_source = np.random.choice(len(X_source), batch_size)
@@ -247,7 +255,7 @@ class ADA:
             accuracy, entropy, summary = self.sess.run([self.accuracy, self.entropy_t2s_loss, self.losses_summary], 
                                                    feed_dict=feed_dict)
                                                    
-            self.train_writer.add_summary(summary)
+            self.train_writer.add_summary(summary, global_step=self.iter)
 
             # Display
             if self.verbose >= 2:
@@ -276,7 +284,7 @@ class ADA:
         accuracy, entropy, summary = self.sess.run([self.accuracy, self.entropy_t2s_loss, self.losses_summary], 
                                                feed_dict=feed_dict)
                                                
-        self.test_writer.add_summary(summary)
+        self.test_writer.add_summary(summary, global_step=self.iter)
         
         # Display
         if self.verbose >= 2:      
@@ -284,11 +292,10 @@ class ADA:
                   .format(accuracy, entropy))
                   
         if test_all:
-            nb_batches = len(X_target) // batch_size
             Y_target_predict = []
 
             for start in tqdm(range(0, X_target.shape[0], batch_size)):
-                target_predict = self.DG_t2s_predict_mean
+                target_predict = self.DG_t2s_predict
                 test_samples = X_target[start:batch_size+start]
                 Y_target_predict = np.concatenate([Y_target_predict, 
                                                    self.sess.run(target_predict, feed_dict={self.ipt_target: test_samples})])
@@ -304,7 +311,6 @@ class ADA:
         X_t2s = unnormalize(self.sess.run(self.G_t2s, feed_dict={self.ipt_target: X_target[:nb_images]}))
         X_cycle_s2s = unnormalize(self.sess.run(self.G_cycle_s2s, feed_dict={self.ipt_source: X_source[:nb_images]}))
         X_cycle_t2t = unnormalize(self.sess.run(self.G_cycle_t2t, feed_dict={self.ipt_target: X_target[:nb_images]}))
-        
         Y_source_predict = self.sess.run(self.D_source_predict, feed_dict={self.ipt_source: X_source[:nb_images]})
         Y_target_predict = self.sess.run(self.DG_t2s_predict, feed_dict={self.ipt_target: X_target[:nb_images]})
         

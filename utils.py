@@ -15,13 +15,8 @@ def unnormalize(x):
 def leaky_relu(x, alpha=0.05):
     return tf.maximum(x, alpha*x)
 
-def accuracy(y_true, y_predict):
-    """ shape: (n_samples,) """
-    
-    return tf.reduce_sum(tf.cast(tf.equal(y_true,y_predict), dtype=tf.int32)) / tf.shape(y_true)[0]
-
-
 def plot_images(index, X_source, X_target, X_s2s, X_t2t, X_s2t, X_t2s, X_cycle_s2s, X_cycle_t2t, Y_source_predict, Y_target_predict):
+    plt.clf()
     plt.rcParams['figure.figsize'] = (20, 10)
 
     plt.subplot(2,4,1)

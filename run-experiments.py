@@ -8,11 +8,11 @@ from ADA import ADA
 from experiment import experiment
 
 # ================== Arguments ==================
-    
+
 parser = argparse.ArgumentParser(
     description='Run all experiments described in the different config files'
 )
-parser.add_argument('configs_dir', type=str, help='Path to configs directory')
+parser.add_argument('configs_dir', type=str, help='Path to configs directory or to a config file')
 parser.add_argument('output_dir', type=str, help='Path to the output directory')
 parser.add_argument('-v', choices=['0','1','2','3'], default=1, dest='verbose',
                     help='Level of verbosity, between 0 and 3')
@@ -27,9 +27,13 @@ load = args.load
 
 # ================ Load config files =============
 
-config_files = glob.glob(os.path.join(configs_dir, '*.yaml'))
+if os.path.isdir(configs_dir):
+    config_files = glob.glob(os.path.join(configs_dir, '*.yaml'))
+else:
+    config_files = [configs_dir]
+
 experiment_names = [os.path.splitext(os.path.basename(f))[0] for f in config_files]
-    
+
 def load_config(path):
     with open(path, 'r') as f:
         config = yaml.load(f)
