@@ -11,34 +11,34 @@ train:
     disc_opti: adam
     lr_gen: 2e-4
     lr_disc: 2e-4
-    gan_loss: original
+    gan_loss: original # {original, wasserstein, lsgan}
     weight_clipping: 0 # if 0 or less, no weight clipping
     nb_iter_d: 1
     nb_iter_g: 1
     vae_init: 0
     loss_weight:
-        gen: 1
-        disc: 1
-        classif_source: 1
-        classif_vae: 1
-        r1_reg: 1
-        vae_rec: 10
-        vae_kl: 10
-        cycle: 0
-        entropy: 0
-        feat_matching: 0
+        gen: 1 # generator GAN loss (s2t, t2s, s2s and t2t)
+        disc: 1 # discriminator GAN loss (s2t, t2s, s2s and t2t)
+        classif_source: 1 # classification loss on the source input
+        classif_vae: 1 # classification loss on the source reconstruction
+        r1_reg: 1 # R1 regularization, from (Lars Mescheder et al., 2018)
+        vae_rec: 10 # Reconstruction part of the VAE loss (s2s and t2t)
+        vae_kl: 10 # KL part of the VAE loss (s2s and t2t)
+        cycle: 0 # Cycle-consistency loss (s2s and t2t)
+        entropy: 0 # Entropy loss (t2s and s2s), using the output of the classifier trained on the source
+        feat_matching: 0 # Feature matching loss
     test_every: 10
     save_every: 500
 test:
     batch_size: 100
 networks:
     generator:
-        encoder_name: unit_encoder
-        decoder_name: unit_decoder
+        encoder_name: unit_encoder # name of the encoder function
+        decoder_name: unit_decoder # name of the decoder function
         channels: 96
         shared_weights: strong # {weak, strong, none}
     discriminator:
-        name: unit_discriminator
+        name: unit_discriminator # name of the discriminator function
         channels: 64
         shared_weights: strong # {weak, strong, none}
 results:
