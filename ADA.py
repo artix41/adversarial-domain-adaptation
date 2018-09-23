@@ -79,7 +79,7 @@ class ADA:
         DG_t2t_mean, DG_t2t_logits_mean, DG_t2t_classif_mean, DG_t2t_embed_mean = discriminator(self.G_t2t_mean, "target", config_disc)
         
         self.DG_t2s_predict = tf.argmax(tf.nn.softmax(DG_t2s_classif), axis=1)
-        # self.DG_t2s_predict_mean = tf.argmax(tf.nn.softmax(DG_t2s_classif_mean), axis=1)
+        self.DG_t2s_predict_mean = tf.argmax(tf.nn.softmax(DG_t2s_classif_mean), axis=1)
         self.D_source_predict = tf.argmax(tf.nn.softmax(D_source_classif), axis=1)
         
         # ===================== Losses =====================
@@ -124,7 +124,7 @@ class ADA:
         G_s2s_loss = gen_loss_func(DG_s2s_logits, scope="GAN_generator_s2s_loss")
         
         self.accuracy = accuracy(tf.argmax(self.labels_target, axis=1), self.DG_t2s_predict, scope="Accuracy")
-        self.accuracy_mean = accuracy(tf.argmax(self.labels_target, axis=1), self.DG_t2s_predict_mean)
+        self.accuracy_mean = accuracy(tf.argmax(self.labels_target, axis=1), self.DG_t2s_predict_mean, scope="Accuracy_mean")
         
         self.D_loss = config_train["loss_weight"]["disc"] * (D_s2s_loss + D_t2t_loss + D_s2t_loss + D_t2s_loss) \
                          + config_train["loss_weight"]["feat_matching"] * (feat_t2s_loss + feat_s2t_loss) \
