@@ -101,8 +101,8 @@ class ADA:
         discreg_t2s_loss = R1_reg(D_source_logits, self.ipt_source, DG_t2s_logits, self.G_t2s, scope="R1_reg_t2s_loss")
         discreg_t2t_loss = R1_reg(D_target_logits, self.ipt_target, DG_t2t_logits, self.G_t2t, scope="R1_reg_t2t_loss")
         
-        cycle_s2s_loss = cycle_loss(self.G_cycle_s2s_mean, self.ipt_source, scope="Cycle s2s loss")
-        cycle_t2t_loss = cycle_loss(self.G_cycle_t2t_mean, self.ipt_target, scope="Cycle t2t loss")
+        cycle_s2s_loss = cycle_loss(self.G_cycle_s2s_mean, self.ipt_source, scope="Cycle_s2s_loss")
+        cycle_t2t_loss = cycle_loss(self.G_cycle_t2t_mean, self.ipt_target, scope="Cycle_t2t_loss")
         
         entropy_t2s_loss = entropy_loss(DG_t2s_classif, scope="Entropy_t2s_loss")
         entropy_s2s_loss = entropy_loss(DG_s2s_classif, scope="Entropy_s2s_loss")
