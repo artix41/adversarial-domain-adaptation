@@ -17,16 +17,42 @@ train:
     nb_iter_g: 1
     vae_init: 0
     loss_weight:
-        gen: 1 # generator GAN loss (s2t, t2s, s2s and t2t)
-        disc: 1 # discriminator GAN loss (s2t, t2s, s2s and t2t)
-        classif_source: 1 # classification loss on the source input
-        classif_vae: 1 # classification loss on the source reconstruction
-        r1_reg: 1 # R1 regularization, from (Lars Mescheder et al., 2018)
-        vae_rec: 10 # Reconstruction part of the VAE loss (s2s and t2t)
-        vae_kl: 10 # KL part of the VAE loss (s2s and t2t)
-        cycle: 0 # Cycle-consistency loss (s2s and t2t)
-        entropy: 0 # Entropy loss (t2s and s2s), using the output of the classifier trained on the source
-        feat_matching: 0 # Feature matching loss
+        generator:
+            s2s: # source to source
+                gan: 1 # GAN generator loss
+                vae_rec: 10 # Reconstruction part of the VAE loss (s2s and t2t)
+                vae_kl: 10 # KL part of the VAE loss (s2s and t2t)
+                cycle: 0 # Cycle-consistency loss (s2s and t2t)
+                entropy: 0
+                classif_vae: 1 # classification loss on the source reconstruction
+            t2t: # target to target
+                gan: 1
+                vae_rec: 10
+                vae_kl: 10
+                cycle: 0
+            s2t: # source to target
+                gan: 1
+            t2s: # target to source
+                gan: 1
+                entropy: 0
+        discriminator:
+            classif_source: 1 # classification loss on the source input
+            s2s:
+                gan: 1 # GAN discriminator loss
+                r1_reg: 1 # R1 regularization, from (Lars Mescheder et al., 2018)
+                feat_matching: 0 # Feature matching loss
+            t2t:
+                gan: 1 # GAN discriminator loss
+                r1_reg: 1 # R1 regularization, from (Lars Mescheder et al., 2018)
+                feat_matching: 0 # Feature matching loss
+            s2t:
+                gan: 1 # GAN discriminator loss
+                r1_reg: 1 # R1 regularization, from (Lars Mescheder et al., 2018)
+                feat_matching: 0 # Feature matching loss
+            t2s:
+                gan: 1 # GAN discriminator loss
+                r1_reg: 1 # R1 regularization, from (Lars Mescheder et al., 2018)
+                feat_matching: 0 # Feature matching loss
     test_every: 10
     save_every: 500
 test:

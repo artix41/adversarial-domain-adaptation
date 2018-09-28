@@ -46,15 +46,13 @@ class ADA:
         E_mean_source, E_source = encoder(self.ipt_source, "source", config_gen)
         E_mean_target, E_target = encoder(self.ipt_target, "target", config_gen)
         
-        # Decoder
+        # Decoders
         self.G_t2s = decoder(E_target, "source", config_gen) # target to source (t2s)
         self.G_s2t = decoder(E_source, "target", config_gen) # source to target (s2t)
-        self.G_t2s_mean = decoder(E_mean_target, "source", config_gen)
-        self.G_s2t_mean = decoder(E_mean_source, "target", config_gen)
-
-        # VAE
         self.G_t2t = decoder(E_target, "target", config_gen) # target to target (t2t)
         self.G_s2s = decoder(E_source, "source", config_gen) # source to source (s2s)
+        self.G_t2s_mean = decoder(E_mean_target, "source", config_gen)
+        self.G_s2t_mean = decoder(E_mean_source, "target", config_gen)
         self.G_t2t_mean = decoder(E_mean_target, "target", config_gen)
         self.G_s2s_mean = decoder(E_mean_source, "source", config_gen)
 
@@ -85,10 +83,13 @@ class ADA:
         # ===================== Losses =====================
         
         vae_rec_s2s_loss = reconstruction_loss(self.ipt_source, self.G_s2s, scope="Rec_s2s_loss")
-        vae_kl_s2s_loss = latent_loss(E_mean_source, scope="KL_s2s_loss")
+        vae_kl_source_loss = latent_loss(E_mean_source, scope="KL_source_loss")
 
-        vae_rec_t2t_loss = reconstruction_loss(self.ipt_target, self.G_t2t, scope="VAE_rec_t2t_loss")
-        vae_kl_t2t_loss = latent_loss(E_mean_target, scope="KL_t2t_loss")
+        vae_rec_t2t_loss = reconstruction_loss(self.ipt_target, self.G_t2t, scope="Rec_t2t_loss")
+        vae_kl_target_loss = latent_loss(E_mean_target, scope="KL_target_loss")
+
+        vae_rec_s2t_loss = reconstruction_loss(self.ipt_source, self.G_s2t, scope="Rec_s2t_loss")
+        vae_rec_t2s_loss = reconstruction_loss(self.ipt_target, self.G_t2s, scope="Rec_t2s_loss")
     
         classif_source_loss = classification_loss(D_source_classif, self.labels_source, scope="Classif_source_loss")
         classif_vae_loss = classification_loss(DG_s2s_classif, self.labels_source, scope="Classif_VAE_loss")
@@ -126,26 +127,41 @@ class ADA:
         self.accuracy = accuracy(tf.argmax(self.labels_target, axis=1), self.DG_t2s_predict, scope="Accuracy")
         self.accuracy_mean = accuracy(tf.argmax(self.labels_target, axis=1), self.DG_t2s_predict_mean, scope="Accuracy_mean")
         
-        self.D_loss = config_train["loss_weight"]["disc"] * (D_s2s_loss + D_t2t_loss + D_s2t_loss + D_t2s_loss) \
-                         + config_train["loss_weight"]["feat_matching"] * (feat_t2s_loss + feat_s2t_loss) \
-                         + config_train["loss_weight"]["classif_source"] * classif_source_loss \
-                         + config_train["loss_weight"]["r1_reg"] * (discreg_s2s_loss + discreg_t2t_loss + discreg_s2t_loss + discreg_t2s_loss)
+        weight_disc = config_train["loss_weight"]["discriminator"]
+        weight_gen = config_train["loss_weight"]["generator"]
+        weight_init = config_train["init"]
+
+        self.D_loss = weight_disc["s2s"]["gan"] * D_s2s_loss + weight_disc["t2t"]["gan"] * D_t2t_loss \
+                    + weight_disc["s2t"]["gan"] * D_s2t_loss + weight_disc["t2s"]["gan"] * D_t2s_loss \
+                    + weight_disc["s2s"]["r1_reg"] * discreg_s2s_loss + weight_disc["t2t"]["r1_reg"] * discreg_t2t_loss \
+                    + weight_disc["s2t"]["r1_reg"] * discreg_s2t_loss + weight_disc["t2s"]["r1_reg"] * discreg_t2s_loss \
+                    + weight_disc["s2t"]["feat_matching"] * feat_s2t_loss + weight_disc["t2s"]["feat_matching"] * feat_t2s_loss \
+                    + weight_disc["classif_source"] * classif_source_loss
         
-        self.G_loss = config_train["loss_weight"]["gen"] * (G_s2s_loss + G_t2t_loss + G_s2t_loss + G_t2s_loss) \
-                        + config_train["loss_weight"]["vae_rec"] * (vae_rec_s2s_loss + vae_rec_t2t_loss) \
-                        + config_train["loss_weight"]["vae_kl"] * (vae_kl_s2s_loss + vae_kl_t2t_loss) \
-                        + config_train["loss_weight"]["classif_vae"] * classif_vae_loss \
-                        + config_train["loss_weight"]["entropy"] * (entropy_t2s_loss + entropy_s2s_loss) \
-                        + config_train["loss_weight"]["cycle"] * (cycle_s2s_loss + cycle_t2t_loss)
+        self.G_loss = weight_gen["s2s"]["gan"] * G_s2s_loss + weight_gen["t2t"]["gan"] * G_t2t_loss \
+                    + weight_gen["s2t"]["gan"] * G_s2t_loss + weight_gen["t2s"]["gan"] * G_t2s_loss \
+                    + weight_gen["s2s"]["vae_rec"] * vae_rec_s2s_loss + weight_gen["t2t"]["vae_rec"] * vae_rec_t2t_loss \
+                    + weight_gen["s2s"]["vae_kl"] * vae_kl_source_loss + weight_gen["t2t"]["vae_kl"] * vae_kl_target_loss \
+                    + weight_gen["s2s"]["cycle"] * cycle_s2s_loss + weight_gen["t2t"]["cycle"] * cycle_t2t_loss \
+                    + weight_gen["s2s"]["entropy"] * entropy_s2s_loss + weight_gen["t2s"]["entropy"] * entropy_t2s_loss \
+                    + weight_gen["s2s"]["classif_vae"] * classif_vae_loss
+
+        self.init_G_loss = weight_init["vae_rec"] * (vae_rec_s2s_loss + vae_rec_t2t_loss) \
+                         + weight_init["vae_kl"] * (vae_kl_source_loss + vae_kl_target_loss)
+
+        self.init_D_loss = weight_init["classif_source"] * classif_source_loss
+
                       
         # ===================== Summary variables =====================
                       
         tf.summary.scalar("entropy_t2s_loss", entropy_t2s_loss)
         tf.summary.scalar("entropy_s2s_loss", entropy_s2s_loss)
         tf.summary.scalar("vae_rec_s2s_loss", vae_rec_s2s_loss)
-        tf.summary.scalar("vae_kl_s2s_loss", vae_kl_s2s_loss)
         tf.summary.scalar("vae_rec_t2t_loss", vae_rec_t2t_loss)
-        tf.summary.scalar("vae_kl_t2t_loss", vae_kl_t2t_loss)
+        tf.summary.scalar("vae_rec_s2t_loss", vae_rec_s2t_loss)
+        tf.summary.scalar("vae_rec_t2s_loss", vae_rec_t2s_loss)
+        tf.summary.scalar("vae_kl_source_loss", vae_kl_source_loss)
+        tf.summary.scalar("vae_kl_target_loss", vae_kl_target_loss)
         tf.summary.scalar("classif_source_loss", classif_source_loss)
         tf.summary.scalar("classif_vae_loss", classif_vae_loss)
         tf.summary.scalar("feat_t2s_loss", feat_t2s_loss)
@@ -193,23 +209,34 @@ class ADA:
         self.D_solver = tf.train.AdamOptimizer(learning_rate=float(lr_disc), beta1=0.5).minimize(self.D_loss, var_list=D_vars)
         self.G_solver = tf.train.AdamOptimizer(learning_rate=float(lr_gen), beta1=0.5).minimize(self.G_loss, var_list=G_vars)
         
+        self.init_D_solver = tf.train.AdamOptimizer(learning_rate=float(lr_disc), beta1=0.5).minimize(self.init_D_loss, var_list=D_vars)
+        self.init_G_solver = tf.train.AdamOptimizer(learning_rate=float(lr_gen), beta1=0.5).minimize(self.init_G_loss, var_list=G_vars)
+
         init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         self.sess.run(init)
 
         self.saver = tf.train.Saver()
         self.train_writer = tf.summary.FileWriter(summary_dir["train"], self.sess.graph)
         self.test_writer = tf.summary.FileWriter(summary_dir["test"], self.sess.graph)
-                 
+    
     def train(self, X_source, X_target, Y_source, Y_target, summary_dir):
         config_train = self.config["train"]
         nb_iter = config_train["nb_iter"]
+        nb_iter_init = config_train["init"]["iter"]
         nb_iter_g = config_train["nb_iter_g"]
         nb_iter_d = config_train["nb_iter_d"]
         batch_size = config_train["batch_size"]
         save_every = config_train["save_every"]
         test_every = config_train["test_every"]
-
+        
         for self.iter in range(self.iter, nb_iter):
+            if self.iter < nb_iter_init:
+                D_solver = self.init_D_solver
+                G_solver = self.init_G_solver
+            else:
+                D_solver = self.D_solver
+                G_solver = self.G_solver
+
             for k in range(nb_iter_d):
                 idx_sample_source = np.random.choice(len(X_source), batch_size)
                 sample_source = X_source[idx_sample_source]
@@ -224,7 +251,7 @@ class ADA:
                              self.labels_target: sample_target_labels,
                              self.is_train: True}
 
-                self.sess.run(self.D_solver, feed_dict=feed_dict)
+                self.sess.run(D_solver, feed_dict=feed_dict)
                 if config_train["weight_clipping"] > 0:
                     self.sess.run(self.clip_D)
                 
@@ -239,7 +266,7 @@ class ADA:
                              self.labels_source: sample_source_labels, 
                              self.is_train: True}
                              
-                self.sess.run(self.G_solver, feed_dict=feed_dict)
+                self.sess.run(G_solver, feed_dict=feed_dict)
             
             # Collect summary
             idx_sample_source = np.random.choice(len(X_source), batch_size)
