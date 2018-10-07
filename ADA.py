@@ -7,9 +7,7 @@ from utils import unnormalize, plot_images
 
 import losses
 from losses import *
-from models import encoders
-from models import decoders
-from models import discriminators
+from models import encoders, decoders, discriminators, classifiers
 
 from utils import log
 from tqdm import tqdm
@@ -41,6 +39,7 @@ class ADA:
         encoder = getattr(encoders, self.config["networks"]["generator"]["encoder_name"])
         decoder = getattr(decoders, self.config["networks"]["generator"]["decoder_name"])
         discriminator = getattr(discriminators, self.config["networks"]["discriminator"]["name"])
+        classifier = getattr(classifiers, self.config["networks"]["classifier"]["name"])
         
         # Encoders
         E_mean_source, E_source = encoder(self.ipt_source, "source", config_gen)
@@ -79,7 +78,18 @@ class ADA:
         self.DG_t2s_predict = tf.argmax(tf.nn.softmax(DG_t2s_classif), axis=1)
         self.DG_t2s_predict_mean = tf.argmax(tf.nn.softmax(DG_t2s_classif_mean), axis=1)
         self.D_source_predict = tf.argmax(tf.nn.softmax(D_source_classif), axis=1)
+
+        # Embedding classifier
+
+        E_source_classif = classifier(E_source, "source")
+        E_target_classif = classifier(E_target, "target")
         
+        self.E_source_predict = tf.argmax(tf.nn.softmax(E_source_classif), axis=1)
+        self.E_target_predict = tf.argmax(tf.nn.softmax(E_target_classif), axis=1)
+
+        self.embedding_source_accuracy = accuracy(tf.argmax(self.labels_source, axis=1), self.E_source_predict, scope="Embedding_source_accuracy")
+        self.embedding_target_accuracy = accuracy(tf.argmax(self.labels_target, axis=1), self.E_target_predict, scope="Embedding_target_accuracy")
+
         # ===================== Losses =====================
         
         vae_rec_s2s_loss = reconstruction_loss(self.ipt_source, self.G_s2s, scope="Rec_s2s_loss")
@@ -93,6 +103,9 @@ class ADA:
     
         classif_source_loss = classification_loss(D_source_classif, self.labels_source, scope="Classif_source_loss")
         classif_vae_loss = classification_loss(DG_s2s_classif, self.labels_source, scope="Classif_VAE_loss")
+
+        classif_embedding_loss = classification_loss(E_source_classif, self.labels_source, scope="Embedding_classif_source_loss")
+        entropy_embedding_target_loss = entropy_loss(E_target_classif, scope="Entropy_embedding_target_loss")
         
         feat_t2s_loss = feat_loss(D_source_embed, DG_t2s_embed, scope="Feature_t2s_loss")
         feat_s2t_loss = feat_loss(D_target_embed, DG_s2t_embed, scope="Feature_s2t_loss")
@@ -144,11 +157,14 @@ class ADA:
                     + weight_gen["s2s"]["vae_kl"] * vae_kl_source_loss + weight_gen["t2t"]["vae_kl"] * vae_kl_target_loss \
                     + weight_gen["s2s"]["cycle"] * cycle_s2s_loss + weight_gen["t2t"]["cycle"] * cycle_t2t_loss \
                     + weight_gen["s2s"]["entropy"] * entropy_s2s_loss + weight_gen["t2s"]["entropy"] * entropy_t2s_loss \
-                    + weight_gen["s2s"]["classif_vae"] * classif_vae_loss
+                    + weight_gen["s2s"]["classif_vae"] * classif_vae_loss \
+                    + weight_gen["s2e"]["classif_embedding"] * classif_embedding_loss \
+                    + weight_gen["t2e"]["entropy_embedding"] * entropy_embedding_target_loss
 
-        self.init_G_loss = weight_init["vae_rec"] * (vae_rec_s2s_loss + vae_rec_t2t_loss) \
+        self.init_G_loss = weight_init["vae_rec_straight"] * (vae_rec_s2s_loss + vae_rec_t2t_loss) \
+                         + weight_init["vae_rec_twist"] * (vae_rec_s2t_loss + vae_rec_t2s_loss) \
                          + weight_init["vae_kl"] * (vae_kl_source_loss + vae_kl_target_loss)
-
+                         
         self.init_D_loss = weight_init["classif_source"] * classif_source_loss
 
                       
@@ -180,10 +196,14 @@ class ADA:
         tf.summary.scalar("G_s2t_loss", G_s2t_loss)
         tf.summary.scalar("G_t2s_loss", G_t2s_loss)
         tf.summary.scalar("G_t2t_loss", G_t2t_loss)
+        tf.summary.scalar("classif_embedding_loss", classif_embedding_loss)
+        tf.summary.scalar("entropy_embedding_target_loss", entropy_embedding_target_loss)
         tf.summary.scalar("G_loss", self.G_loss)
         tf.summary.scalar("D_loss", self.D_loss)
         tf.summary.scalar("accuracy", self.accuracy)
         tf.summary.scalar("accuracy_mean", self.accuracy_mean)
+        tf.summary.scalar("embedding_source_accuracy", self.embedding_source_accuracy)
+        tf.summary.scalar("embedding_target_accuracy", self.embedding_target_accuracy)
         
         self.losses_summary = tf.summary.merge_all()
         
@@ -195,6 +215,8 @@ class ADA:
                  + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='target/encoder') \
                  + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='source/decoder') \
                  + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='target/decoder') \
+                 + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='source/embedding_classifier') \
+                 + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='target/embedding_classifier') \
                  + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='decoder') \
                  + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='encoder')
                  
@@ -218,6 +240,7 @@ class ADA:
         self.saver = tf.train.Saver()
         self.train_writer = tf.summary.FileWriter(summary_dir["train"], self.sess.graph)
         self.test_writer = tf.summary.FileWriter(summary_dir["test"], self.sess.graph)
+        self.save_writer = tf.summary.FileWriter(summary_dir["save"])
     
     def train(self, X_source, X_target, Y_source, Y_target, summary_dir):
         config_train = self.config["train"]
@@ -342,9 +365,18 @@ class ADA:
         Y_target_predict = self.sess.run(self.DG_t2s_predict, feed_dict={self.ipt_target: X_target[:nb_images]})
         
         for index in range(len(X_s2s)):
-            plot_images(index, X_source, X_target, X_s2s, X_t2t, X_s2t, X_t2s, X_cycle_s2s, X_cycle_t2t, Y_source_predict, Y_target_predict)
             print("Saving 'generated-images/iter_{:05d}_image_{:02d}.png'".format(self.iter, index), end="\r")
+            plot_images(index, X_source, X_target, X_s2s, X_t2t, X_s2t, X_t2s, X_cycle_s2s, X_cycle_t2t, Y_source_predict, Y_target_predict)
             plt.savefig(os.path.join(images_dir, "iter_{:05d}_image_{:02d}.png".format(self.iter, index)))
-                  
+
+            # buf = io.BytesIO()
+            # plt.savefig(buf, format='png')
+            # buf.seek(0)
+            # image = tf.image.decode_png(plot_buf.getvalue(), channels=4)
+            # image = tf.expand_dims(image, 0)
+            # summary_op = tf.summary.image("image_{}_{}".format(self.iter, index), image)
+            # summary = self.sess.run(summary_op)
+            # self.save_writer.add_summary(summary, global_step=self.iter)
+            
     def save_model(self, model_dir):
         self.saver.save(self.sess, os.path.join(model_dir, "model.ckpt"))

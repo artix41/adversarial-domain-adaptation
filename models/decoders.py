@@ -6,20 +6,15 @@ def unit_decoder(x, scope, config):
     
     Parameters
     ----------
-    x : tensor of shape = [?, 32, 32, 1]
-        Normally takes a real image (except if you use cycle-consistency)
+    x : tensor of shape = [?, 1, 1, embedding_size]
+        Embedding vector
     scope : {'source', 'target'}
         Corresponds to the domain of x
 
     Returns
     -------
-    mu : tensor of shape = [?, 8, 8, 1024]
-        Mean of the embedding space conditionned on x
-    log_sigma_sq : tensor of shape = [?, 8, 8, 1024]
-        log of the variance of the embedding space conditionned on x
-    z : tensor of shape = [?, 8, 8, 1024]
-        Random sample generated from mu(x) and sigma(x)
-        
+    deconv5 : tensor of shape = [?, 32, 32, 3]
+        Decoded image 
     """
     
     # Configure weight sharing

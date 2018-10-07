@@ -20,7 +20,8 @@ def experiment(config, output_dir, load=False, verbose=2, seed=42):
     model_dir = os.path.join(output_dir, "model")
     images_dir = os.path.join(output_dir, "images")
     summary_dir = {"train": os.path.join(output_dir, "summary_train"),
-                   "test": os.path.join(output_dir, "summary_test")}
+                   "test": os.path.join(output_dir, "summary_test"),
+                   "save": os.path.join(output_dir, "summary_save")}
     
     nb_iter = train_config["nb_iter"]
     test_every = train_config["test_every"]

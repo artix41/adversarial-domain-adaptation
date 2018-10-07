@@ -1,6 +1,7 @@
 import tensorflow as tf
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
+import io
 
 def log(x, eps=1e-8):
     return tf.log(x + eps)
@@ -18,6 +19,7 @@ def leaky_relu(x, alpha=0.05):
 def plot_images(index, X_source, X_target, X_s2s, X_t2t, X_s2t, X_t2s, X_cycle_s2s, X_cycle_t2t, Y_source_predict, Y_target_predict):
     plt.clf()
     plt.rcParams['figure.figsize'] = (20, 10)
+    plt.title("Index {}".format(index))
 
     plt.subplot(2,4,1)
     plt.title(Y_target_predict[index])

@@ -6,7 +6,7 @@ def unit_encoder(x, scope, config):
     
     Parameters
     ----------
-    x : tensor of shape = [?, 32, 32, 1]
+    x : tensor of shape = [?, 32, 32, 3]
         Normally takes a real image (except if you use cycle-consistency)
     scope : {'source', 'target'}
         Corresponds to the domain of x
