@@ -1,0 +1,105 @@
+data:
+    mnist:
+        path: /home/arthur/datasets/mnist
+        use_inverse: false
+    svhn:
+        path: /home/arthur/datasets/svhn
+train:
+    nb_iter: 50000
+    batch_size: 64
+    gen_opti: rmsprop
+    disc_opti: rmsprop
+    fs_opti: adam
+    lr_gen: 2e-4
+    lr_disc: 2e-4
+    lr_ft_gen: 2e-4
+    lr_ft_disc: 2e-4
+    lr_fs: 2e-4
+    gan_loss: original # {original, wasserstein, lsgan}
+    weight_clipping: 0 # if 0 or less, no weight clipping
+    nb_iter_d: 1 # number of iterations of the discriminator per global iteration
+    nb_iter_g: 1 # number of iterations of the generator per global iteration
+    nb_iter_ft_g: 1 # number of iterations to train the target feature encoder
+    nb_iter_ft_d: 1 # number of iterations to train the feature discriminator
+    nb_iter_init_fs: 1 # number of iteration per init iter to train the source feature encoder 
+    init: # you can initialize the network with only few losses activated
+        iter: 2000 # number of initialization iteration
+        vae_rec_straight: 1 # weight on the reconstruction losses s2s and t2t
+        vae_rec_twist: 0 # weight on the reconstruction losses s2t and t2s
+        vae_kl: 0 # weight on the kl loss
+        disc_classif_source: 0 # classification loss using the discriminator
+        fs_classif_source: 1 # training of F_s (feature encoder) by classifying source
+    loss_weight:
+        generator:
+            s2s: # source to source
+                pix_gan: 0 # GAN generator loss
+                vae_rec: 1 # Reconstruction part of the VAE loss (s2s and t2t)
+                vae_kl: 0 # KL part of the VAE loss (s2s and t2t)
+                cycle: 1 # Cycle-consistency loss (s2s and t2t)
+                entropy: 0
+                classif_vae: 0 # classification loss on the source reconstruction
+            t2t: # target to target
+                pix_gan: 0
+                vae_rec: 1
+                vae_kl: 0
+                cycle: 1
+            s2t: # source to target
+                pix_gan: 1
+                feat_gan: 1
+                feat_classif: 1
+                semantic_consistency: 10
+            t2s: # target to source
+                pix_gan: 1
+                semantic_consistency: 10
+                entropy: 0
+            s2e:
+                classif_embedding: 0
+            t2e:
+                entropy_embedding: 0
+        discriminator:
+            classif_source: 1 # classification loss on the source input
+            s2s:
+                pix_gan: 0 # GAN discriminator loss
+                r1_reg: 0 # R1 regularization, from (Lars Mescheder et al., 2018)
+                feat_matching: 0 # Feature matching loss
+            t2t:
+                pix_gan: 0 # GAN discriminator loss
+                r1_reg: 0 # R1 regularization, from (Lars Mescheder et al., 2018)
+                feat_matching: 0 # Feature matching loss
+            s2t:
+                pix_gan: 1 # GAN discriminator loss
+                feat_gan: 1
+                r1_reg: 1 # R1 regularization, from (Lars Mescheder et al., 2018)
+                feat_matching: 0 # Feature matching loss
+            t2s:
+                pix_gan: 1 # GAN discriminator loss
+                feat_gan: 1
+                r1_reg: 1 # R1 regularization, from (Lars Mescheder et al., 2018)
+                feat_matching: 0 # Feature matching loss
+    test_every: 10
+    save_every: 500
+test:
+    batch_size: 100
+networks:
+    generator:
+        encoder_name: unit_gen_encoder # name of the encoder function
+        decoder_name: unit_gen_decoder # name of the decoder function
+        channels: 96
+        shared_weights: none # {weak, strong, none}
+        random_latent_space: false
+    pixel_discriminator: # GAN discriminator in the pixel space
+        name: unit_pixel_discriminator
+        channels: 64
+        shared_weights: none # {weak, strong, none}
+    feature_discriminator: # GAN discriminator in the feature space
+        name: feature_discriminator
+    feature_encoder: # feature space encoder
+        name: feature_encoder
+        channels: 96
+    latent_classifier: # classifier in the latent space of the generator
+        name: latent_classifier
+    feature_classifier: # classifier in the feature space
+        name: feature_classifier 
+results:
+    nb_images: 64
+        

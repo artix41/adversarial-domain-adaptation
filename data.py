@@ -77,7 +77,7 @@ def load_svhn(config, verbose=2):
         Y_test = np.load(prep_test_labels_file)
     else:
         print("Load train")
-        svhn_train = datasets.SVHN(root=config["path"], download=False, split="extra")
+        svhn_train = datasets.SVHN(root=config["path"], download=False, split="train") # split="extra" works also
         print("Load test")
         svhn_test = datasets.SVHN(root=config["path"], download=False, split="test")
         print("Transform train")

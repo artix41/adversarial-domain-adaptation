@@ -1,8 +1,8 @@
 import tensorflow as tf
 from utils import leaky_relu
 
-def unit_discriminator(x, scope, config):
-    """Discriminator for the two GANs, and source classifier
+def unit_pixel_discriminator(x, scope, config):
+    """Discriminator for the output of the generator (pixel-space)
     
     Parameters
     ----------
@@ -69,3 +69,35 @@ def unit_discriminator(x, scope, config):
         embedding_layer = fc1
         
     return fc1_sigmoid, fc1_logits, fc1_classif, embedding_layer
+
+def feature_discriminator(x, scope, config):
+    """Discriminator on the feature space (output of the semantic encoder)
+    
+    Parameters
+    ----------
+    x : tensor of shape = [?, size_semantic_encoder]
+        Either the input (real sample) or the generated image (fake sample)
+    scope : {'source', 'target'}
+        Choose 'source' for separating real_source from fake_source and 'target' for separating real_target from
+        fake_target. Only used for the first layer.
+    config: config file for the discriminator
+
+    Returns
+    -------
+    fc2_sigmoid : tensor of shape = [1]
+        Output of the discriminator real vs fake with a sigmoid
+    fc2_logits : tensor of shape = [1]
+        Output of the discriminator real vs fake without any activation function
+    """
+    
+    initializer = tf.contrib.layers.xavier_initializer()
+    
+    with tf.variable_scope(scope + "/feature_discriminator", reuse=tf.AUTO_REUSE):
+        fc1 = tf.layers.dense(inputs=x, units=10, activation=tf.nn.relu, kernel_initializer=initializer, name="fc1")
+        fc2 = tf.layers.dense(inputs=fc1, units=10, activation=tf.nn.relu, kernel_initializer=initializer, name="fc2")
+
+        fc3_logits = tf.layers.dense(inputs=fc2, units=1, activation=None, kernel_initializer=initializer,
+                                     name="fc3_logits")
+        fc3_sigmoid = tf.sigmoid(fc3_logits)
+        
+    return fc3_sigmoid, fc3_logits

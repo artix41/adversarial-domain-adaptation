@@ -1,7 +1,7 @@
 import tensorflow as tf
 from utils import leaky_relu
 
-def unit_encoder(x, scope, config):
+def unit_gen_encoder(x, scope, config):
     """Encoder for the two GANs
     
     Parameters
@@ -65,3 +65,62 @@ def unit_encoder(x, scope, config):
         z = mu + tf.random_normal([tf.shape(x)[0],1,1,ch*8],0,1,dtype=tf.float32) # latent space
 
     return mu, z
+
+def unit_gen_decoder(x, scope, config):
+    """Encoder for the two GANs
+    
+    Parameters
+    ----------
+    x : tensor of shape = [?, 1, 1, embedding_size]
+        Embedding vector
+    scope : {'source', 'target'}
+        Corresponds to the domain of x
+
+    Returns
+    -------
+    deconv5 : tensor of shape = [?, 32, 32, 3]
+        Decoded image 
+    """
+    
+    # Configure weight sharing
+    
+    scope3 = scope + "/decoder" # first layer not shared
+    if config["shared_weights"] in ["weak", "none"]:
+        scope2 = scope + "/decoder"
+    else:
+        scope2 = "decoder" # shared weights at the 2nd layer if strong
+    if config["shared_weights"] in ["weak", "strong"]:
+        scope1 = "decoder"
+    else:
+        scope1 = scope + "/decoder"
+    
+    # Build the network
+    
+    ch = config["channels"]
+    initializer = tf.contrib.layers.xavier_initializer()
+    
+    with tf.variable_scope(scope1, reuse=tf.AUTO_REUSE): # shared weights
+        deconv1 = tf.layers.conv2d_transpose(x, ch*8, [4, 4], strides=2, padding='VALID', 
+                                             kernel_initializer=initializer, activation=leaky_relu,
+                                             name="deconv1")
+
+        deconv2 = tf.layers.conv2d_transpose(deconv1, ch*4, [4, 4], strides=2, padding='SAME', 
+                                             kernel_initializer=initializer, activation=leaky_relu,
+                                             name="deconv2")
+        
+    with tf.variable_scope(scope2, reuse=tf.AUTO_REUSE):
+        deconv3 = tf.layers.conv2d_transpose(deconv2, ch*2, [4, 4], strides=2, padding='SAME', 
+                                             kernel_initializer=initializer, activation=leaky_relu,
+                                             name="deconv3")
+        
+    with tf.variable_scope(scope3, reuse=tf.AUTO_REUSE):
+        deconv4 = tf.layers.conv2d_transpose(deconv3, ch, [4, 4], strides=2, padding='SAME', 
+                                             kernel_initializer=initializer, activation=leaky_relu,
+                                             name="deconv4")
+        
+
+        deconv5 = tf.layers.conv2d_transpose(deconv4, 3, [1, 1], strides=1, padding='SAME', 
+                                             kernel_initializer=initializer, activation=tf.nn.tanh,
+                                             name="deconv5")
+    
+    return deconv5

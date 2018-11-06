@@ -36,7 +36,7 @@ def lsgan_gen_loss(D_gen, scope):
     
 def cycle_loss(cycle, original, scope):
     with tf.name_scope(scope):
-        return tf.losses.mean_squared_error(cycle, original)
+        return tf.losses.absolute_difference(cycle, original)
     
 def R1_reg(D_real, X_real, D_gen, X_gen, scope):
     with tf.name_scope(scope):
@@ -59,18 +59,21 @@ def reconstruction_loss(x, x_rec, scope, norm="l2"):
         else:
             raise ValueError("Norm of reconstruction loss not recognized")
         
-def classification_loss(D_classif, labels, scope):
+def classification_loss(predicted_logits, labels, scope):
     with tf.name_scope(scope):
         return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, 
-                                                                      logits=D_classif))
-def entropy_loss(D_classif, scope):
+                                                                      logits=predicted_logits))
+def entropy_loss(predicted_logits, scope):
     with tf.name_scope(scope):
-        return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=tf.nn.softmax(D_classif),
-                                                                      logits=D_classif))
-                                                                  
-def feat_loss(D_embed, DG_embed, scope):
+        return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=tf.nn.softmax(predicted_logits),
+                                                                      logits=predicted_logits))
+
+def feat_matching_loss(D_embed, DG_embed, scope):
     with tf.name_scope(scope):
         return tf.reduce_mean(tf.losses.absolute_difference(D_embed, DG_embed))
+
+def semantic_loss(F_input, F_transformed, scope):
+    return classification_loss(F_input, tf.one_hot(tf.argmax(F_transformed, axis=1), 10), scope)
 
 def accuracy(y_true, y_predict, scope):
     """ shape: (n_samples,) """

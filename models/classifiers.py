@@ -1,7 +1,7 @@
 import tensorflow as tf
 from utils import leaky_relu
 
-def classifier(x, scope):
+def latent_classifier(x, scope, config):
     """Classifier in the embedding space
     
     Parameters
@@ -19,7 +19,7 @@ def classifier(x, scope):
 
     initializer = tf.contrib.layers.xavier_initializer()
 
-    with tf.variable_scope(scope + "/embedding_classifier", reuse=tf.AUTO_REUSE):
+    with tf.variable_scope(scope + "/latent_classifier", reuse=tf.AUTO_REUSE):
         x = tf.contrib.layers.flatten(x)
         fc1_classif = tf.layers.dense(inputs=x, units=10, activation=None, kernel_initializer=initializer,
                                       name="fc1_classif")
